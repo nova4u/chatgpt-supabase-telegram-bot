@@ -57,7 +57,12 @@ bot.command("history", async (ctx) => {
 
   const history = await getUserMessageHistory(userId);
 
-  return ctx.reply(formatMessageHistory(history) || "History is empty", {});
+  // Format the message and filter out the initial prompt.
+  return ctx.reply(
+    formatMessageHistory(history.filter((m) => m.role !== "system")) ||
+      "History is empty",
+    {}
+  );
 });
 
 bot.errorBoundary((err) => {

@@ -4,11 +4,14 @@ import { supabaseClient } from "./supaClient.ts";
 
 export type Messages = Message[];
 export type Message = {
-  role: string;
+  role: "system" | "user" | "assistant";
   content: string;
 };
 
 const openAI = new OpenAI(Deno.env.get("OPENAI_KEY") || "");
+const startingMessages: Messages = Deno.env.get("STARTING_PROMPT")
+  ? [{ role: "system", content: Deno.env.get("STARTING_PROMPT") || "" }]
+  : [];
 
 if (!openAI) {
   throw new Error(`Please specify the OpenAI API Key.`);
@@ -41,13 +44,13 @@ export const getUserMessageHistory = async (id: number): Promise<Messages> => {
       .from("dialogues")
       .insert({
         user_id: id,
-        message: [],
+        message: startingMessages,
       })
       .eq("user_id", id);
 
     if (error) throw error.message;
 
-    return [];
+    return startingMessages;
   }
 
   return data![0]["message"] || " ";
@@ -73,7 +76,7 @@ export const updateUserMessageHistory = async (
 export const clearUserMessageHistory = async (id: number) => {
   const { error } = await supabaseClient
     .from("dialogues")
-    .update({ message: [] })
+    .update({ message: startingMessages })
     .eq("user_id", id);
 
   if (error) throw error.message;

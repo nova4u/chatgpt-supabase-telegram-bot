@@ -49,10 +49,7 @@ interface Usage {
 export class OpenAI {
   constructor(private API_KEY: string) {}
 
-  public async createChatCompletion(messages: Messages): Promise<{
-    answer: Completion["choices"][0]["message"]["content"];
-    tokens: Completion["usage"]["total_tokens"];
-  }> {
+  public async createChatCompletion(messages: Messages) {
     const options: CreateCompletionRequest & { messages: Messages } = {
       model: "gpt-3.5-turbo",
       messages,

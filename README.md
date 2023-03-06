@@ -18,7 +18,7 @@
    - `BOT_TOKEN=your-telegram-bot-token`
    - `FUNCTION_SECRET=secret123`
    - `OPENAI_KEY=your-openai-api-secret`
-   - `USERS="["user1", "user2", "user3"]"` (Note: wrap the usernames in double quotes)
+   - `USERS='["user1", "user2", "user3"]'` (Note: wrap the usernames in double quotes)
 
 5. Fill out `STARTING_PROMPT` in the `.env` file (not required):
 

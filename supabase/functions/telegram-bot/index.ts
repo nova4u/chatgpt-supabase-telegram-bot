@@ -105,7 +105,7 @@ bot.on("message", async (ctx) => {
       { role: "assistant", content: aiResponse + "\n" },
     ]);
 
-    ctx.reply(aiResponse);
+    await ctx.reply(aiResponse).catch((e) => console.error(e));
   } catch (error) {
     console.error(error);
     ctx.reply(`Sorry an error has occured, please try again later.`);

@@ -8,6 +8,7 @@ import {
   clearUserMessageHistory,
   formatMessageHistory,
   getAiResponse,
+  getCredits,
   getUserId,
   getUserMessageHistory,
   Message,
@@ -48,6 +49,18 @@ bot.use(async (ctx, next) => {
 bot.command("start", (ctx) =>
   ctx.reply("Welcome! I will be your personal AI Assistant.")
 );
+
+bot.command("credits", async (ctx) => {
+  const { total_available, total_used } = await getCredits();
+  await ctx
+    .reply(
+      `Here is your total <strong>OpenAI</strong> usage amount:\nUsed balance: <strong>${total_used}</strong>\nAvailable balance: <strong>${total_available}</strong>`,
+      {
+        parse_mode: "HTML",
+      }
+    )
+    .catch((e) => console.error(e));
+});
 
 bot.command("ping", (ctx) => ctx.reply(`Pong! ${new Date()} ${Date.now()}`));
 

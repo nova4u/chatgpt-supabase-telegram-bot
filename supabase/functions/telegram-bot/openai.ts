@@ -12,6 +12,24 @@ export interface CreateCompletionRequest {
   echo?: boolean | null;
   stop?: string | string[] | null;
 }
+interface BillingResponse {
+  object: string;
+  total_granted: number;
+  total_used: number;
+  total_available: number;
+  grants: {
+    object: string;
+    data: {
+      object: string;
+      id: string;
+      grant_amount: number;
+      used_amount: number;
+      effective_at: number;
+      expires_at: number;
+    };
+  };
+  error?: OpenAIError;
+}
 
 interface OpenAIError {
   message: string;
@@ -48,6 +66,19 @@ interface Usage {
 
 export class OpenAI {
   constructor(private API_KEY: string) {}
+
+  public async getBilling() {
+    const endpoint = "https://api.openai.com/dashboard/billing/credit_grants";
+    const { total_available, total_used, error } = await fetch(endpoint, {
+      headers: {
+        Authorization: `Bearer ${this.API_KEY}`,
+      },
+    }).then((r) => r.json() as unknown as BillingResponse);
+    if (error) {
+      throw error.message;
+    }
+    return { total_available, total_used };
+  }
 
   public async createChatCompletion(messages: Messages) {
     const options: CreateCompletionRequest & { messages: Messages } = {

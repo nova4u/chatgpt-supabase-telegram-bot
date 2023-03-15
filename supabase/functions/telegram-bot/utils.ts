@@ -21,6 +21,25 @@ export const getUserId = (ctx: Context) => {
   return ctx.from?.id || null;
 };
 
+export const getCredits = async () => {
+  const { total_available, total_used } = await openAI.getBilling();
+
+  const formatNumber = (number: number) => {
+    const formatter = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
+    return formatter.format(number);
+  };
+
+  return {
+    total_available: formatNumber(total_available),
+    total_used: formatNumber(total_used),
+  };
+};
 export const formatMessageHistory = (messages: Messages): string => {
   let output = "";
   for (const message of messages) {

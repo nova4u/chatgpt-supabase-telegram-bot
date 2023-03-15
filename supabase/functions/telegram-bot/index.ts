@@ -112,7 +112,7 @@ bot.on("message", async (ctx) => {
   }
 });
 
-const handleUpdate = webhookCallback(bot, "std/http");
+const handleUpdate = webhookCallback(bot, "std/http", "throw", 40_000);
 
 serve(async (req) => {
   try {

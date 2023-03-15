@@ -125,6 +125,25 @@ bot.on("message", async (ctx) => {
   }
 });
 
+await bot.api.setMyCommands([
+  {
+    command: "/start",
+    description: "Start the bot",
+  },
+  {
+    command: "/clear",
+    description: "Clear the dialogue history.",
+  },
+  {
+    command: "/history",
+    description: "Show the dialogue history.",
+  },
+  {
+    command: "/credits",
+    description: "Show the amount of credits used.",
+  },
+]);
+
 const handleUpdate = webhookCallback(bot, "std/http", "throw", 40_000);
 
 serve(async (req) => {

@@ -40,6 +40,44 @@ export const getCredits = async () => {
     total_used: formatNumber(total_used),
   };
 };
+export function estimateTokens(
+  text: string,
+  method: "max" | "min" | "chars" | "words" | "average" = "max"
+) {
+  // method can be "average", "words", "chars", "max", "min", defaults to "max"
+  // "average" is the average of words and chars
+  // "words" is the word count divided by 0.75
+  // "chars" is the char count divided by 4
+  // "max" is the max of word and char
+  // "min" is the min of word and char
+  const word_count = text.split(" ").length;
+  const char_count = text.length;
+  const tokens_count_word_est = word_count / 0.75;
+  const tokens_count_char_est = char_count / 4.0;
+  let output = 0;
+  switch (method) {
+    case "average":
+      output = (tokens_count_word_est + tokens_count_char_est) / 2;
+      break;
+    case "words":
+      output = tokens_count_word_est;
+      break;
+    case "chars":
+      output = tokens_count_char_est;
+      break;
+    case "max":
+      output = Math.max(tokens_count_word_est, tokens_count_char_est);
+      break;
+    case "min":
+      output = Math.min(tokens_count_word_est, tokens_count_char_est);
+      break;
+    default:
+      // return invalid method message
+      return "Invalid method. Use 'average', 'words', 'chars', 'max', or 'min'.";
+  }
+  return output;
+}
+
 export const formatMessageHistory = (messages: Messages): string => {
   let output = "";
   for (const message of messages) {

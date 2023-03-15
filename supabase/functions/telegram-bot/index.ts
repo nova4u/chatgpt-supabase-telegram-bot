@@ -6,6 +6,7 @@ import {
 } from "https://deno.land/x/grammy@v1.8.3/mod.ts";
 import {
   clearUserMessageHistory,
+  estimateTokens,
   formatMessageHistory,
   getAiResponse,
   getCredits,
@@ -104,6 +105,19 @@ bot.on("message", async (ctx) => {
     }
 
     const history = await getUserMessageHistory(userId);
+
+    const aprxTokens = estimateTokens(formatMessageHistory(history));
+
+    if (aprxTokens > 2000) {
+      await ctx.reply(
+        `Just a heads up, you've used around *${Math.floor(
+          +aprxTokens
+        )}* tokens for this query. To help you manage your token usage, we recommend running the */clear* command every so oftens usage.`,
+        {
+          parse_mode: "Markdown",
+        }
+      );
+    }
 
     const message: Message = {
       role: "user",

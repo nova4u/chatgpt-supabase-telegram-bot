@@ -104,7 +104,7 @@ export class OpenAI {
       throw response.error.message;
     }
 
-    console.log(`Tokens used:`, response.usage.total_tokens);
+    console.log(response.usage);
 
     return {
       answer: response.choices[0].message["content"],

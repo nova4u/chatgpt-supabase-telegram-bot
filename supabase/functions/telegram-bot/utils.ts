@@ -75,7 +75,7 @@ export function estimateTokens(
       // return invalid method message
       return "Invalid method. Use 'average', 'words', 'chars', 'max', or 'min'.";
   }
-  return output;
+  return Math.ceil(output);
 }
 
 export const formatMessageHistory = (messages: Messages): string => {

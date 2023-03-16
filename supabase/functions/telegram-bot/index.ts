@@ -70,13 +70,17 @@ bot.command("history", async (ctx) => {
   if (!userId) return ctx.reply(`No User Found`);
 
   const history = await getUserMessageHistory(userId);
-
-  // Format the message and filter out the initial prompt.
-  return ctx.reply(
-    formatMessageHistory(history.filter((m) => m.role !== "system")) ||
-      "History is empty",
-    {}
+  const aprxTokens = estimateTokens(
+    formatMessageHistory(history).replaceAll("\n", "")
   );
+  console.log(formatMessageHistory(history).replaceAll("\n", ""));
+
+  const reply = formatMessageHistory(history.filter((m) => m.role !== "system"))
+    ? formatMessageHistory(history.filter((m) => m.role !== "system")) +
+      `Approximate token usage for your query: ${aprxTokens}`
+    : "History is empty";
+
+  return ctx.reply(reply, {});
 });
 
 bot.errorBoundary((err) => {

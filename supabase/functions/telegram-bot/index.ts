@@ -2,47 +2,83 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import {
   Bot,
   Context,
+  GrammyError,
+  HttpError,
   webhookCallback,
 } from "https://deno.land/x/grammy@v1.8.3/mod.ts";
+
+import { Menu } from "https://deno.land/x/grammy_menu@v1.1.3/mod.ts";
+
 import {
+  changeSettings,
+  checkUserSettings,
   clearUserMessageHistory,
+  createInitialUserSettings,
   estimateTokens,
   formatMessageHistory,
   getAiResponse,
-  getCredits,
+  getUserChatModel,
   getUserId,
   getUserMessageHistory,
   Message,
   updateUserMessageHistory,
 } from "./utils.ts";
 
-const users: string[] = JSON.parse(Deno.env.get("USERS") || "[]");
 const botToken = Deno.env.get("BOT_TOKEN") || "";
-
 if (!botToken) {
   throw new Error(`Please specify the Telegram Bot Token.`);
 }
 
+const users: string[] = JSON.parse(Deno.env.get("USERS") || "[]");
 if (!users.length) {
   throw new Error(`Please specify the users that have access to the bot.`);
 }
 
+const menu = new Menu("model")
+  .text("GPT-3.5 turbo", async (ctx) => {
+    await changeSettings(ctx.from?.id, {
+      model: "gpt-3.5-turbo",
+    });
+    return ctx.reply("The model has been changed to gpt-3.5-turbo");
+  })
+  .row()
+  .text("GPT-4", async (ctx) => {
+    await changeSettings(ctx.from?.id, {
+      model: "gpt-4",
+    });
+    return ctx.reply("The model has been changed to gpt-4");
+  })
+  .row()
+  .text("GPT-4-Turbo", async (ctx) => {
+    await changeSettings(ctx.from?.id, {
+      model: "gpt-4-1106-preview",
+    });
+    return ctx.reply("The model has been changed to gpt-4-1106-preview");
+  });
+
 const bot = new Bot<BotContext>(botToken);
 
-type BotContext = Context & {
+export type BotContext = Context & {
   config: {
     isOwner: boolean;
   };
 };
 
-bot.use(async (ctx, next) => {
-  ctx.config = {
-    isOwner: users.some((user) => ctx.from?.username === user),
-  };
+// deno-lint-ignore no-explicit-any
+bot.use(menu as any);
 
-  if (!ctx.config.isOwner) {
+bot.use(async (ctx, next) => {
+  if (!ctx.from?.username) throw new Error("No user information found");
+
+  ctx.config = { isOwner: users.includes(ctx.from.username) };
+  if (!ctx.config.isOwner)
     return ctx.reply(`Sorry, you are not allowed. This is personal AI Bot`);
-  }
+
+  const userId = getUserId(ctx);
+  if (!userId) throw new Error("User ID could not be retrieved");
+
+  const userHasSettings = await checkUserSettings(userId);
+  if (!userHasSettings) await createInitialUserSettings(userId);
 
   await next();
 });
@@ -51,19 +87,17 @@ bot.command("start", (ctx) =>
   ctx.reply("Welcome! I will be your personal AI Assistant.")
 );
 
-bot.command("credits", async (ctx) => {
-  const { total_available, total_used } = await getCredits();
-  await ctx
-    .reply(
-      `Here is your total <strong>OpenAI</strong> usage amount:\nUsed balance: <strong>${total_used}</strong>\nAvailable balance: <strong>${total_available}</strong>`,
-      {
-        parse_mode: "HTML",
-      }
-    )
-    .catch((e) => console.error(e));
+bot.command("model", async (ctx) => {
+  const userId = getUserId(ctx);
+  const model = await getUserChatModel(userId!);
+  return ctx.reply(`You are currently using ${model} model`);
 });
 
-bot.command("ping", (ctx) => ctx.reply(`Pong! ${new Date()} ${Date.now()}`));
+bot.command("changemodel", async (ctx) => {
+  await ctx.reply("Please select the model you want to use", {
+    reply_markup: menu,
+  });
+});
 
 bot.command("history", async (ctx) => {
   const userId = getUserId(ctx);
@@ -83,12 +117,9 @@ bot.command("history", async (ctx) => {
   return ctx.reply(reply, {});
 });
 
-bot.errorBoundary((err) => {
-  console.error(err);
-});
-
 bot.command("clear", async (ctx) => {
   const userId = getUserId(ctx);
+  console.log(ctx.chat.id);
 
   if (!userId) {
     return ctx.reply(`No User Found`);
@@ -97,6 +128,19 @@ bot.command("clear", async (ctx) => {
   await clearUserMessageHistory(userId);
 
   return ctx.reply(`Your dialogue has been cleared`);
+});
+
+bot.catch((err) => {
+  const ctx = err.ctx;
+  console.error(`Error while handling update ${ctx.update.update_id}:`);
+  const e = err.error;
+  if (e instanceof GrammyError) {
+    console.error("Error in request:", e.description);
+  } else if (e instanceof HttpError) {
+    console.error("Could not contact Telegram:", e);
+  } else {
+    console.error("Unknown error:", e);
+  }
 });
 
 bot.on("message", async (ctx) => {
@@ -110,7 +154,15 @@ bot.on("message", async (ctx) => {
 
     const history = await getUserMessageHistory(userId);
 
-    const aprxTokens = estimateTokens(formatMessageHistory(history));
+    const lastRequest = history.findLast(
+      (message) => message.role === "user"
+    )?.content;
+
+    if (lastRequest === receivedMessage) {
+      return ctx.reply("Repeated requested!");
+    }
+
+    const aprxTokens = +estimateTokens(formatMessageHistory(history));
 
     if (aprxTokens > 2000) {
       await ctx.reply(
@@ -127,19 +179,28 @@ bot.on("message", async (ctx) => {
       role: "user",
       content: receivedMessage || "",
     };
+    const model = await getUserChatModel(userId);
 
-    const aiResponse = await getAiResponse([...history, message]);
+    // console.log(`${model} used for the request`);
+    // const sleep = (returnValue: string) => {
+    //   return new Promise<string>((res) =>
+    //     setTimeout(() => {
+    //       return res(returnValue);
+    //     }, 5000)
+    //   );
+    // };
 
+    const aiResponse = await getAiResponse([...history, message], model);
+    // const aiResponse = await sleep(`Some response`);
+    await ctx.reply(aiResponse).catch((e) => console.error(e));
     await updateUserMessageHistory(userId, [
       ...history,
       message,
       { role: "assistant", content: aiResponse + "\n" },
     ]);
-
-    await ctx.reply(aiResponse).catch((e) => console.error(e));
   } catch (error) {
-    console.error(error);
-    ctx.reply(`Sorry an error has occured, please try again later.`);
+    await ctx.reply(`Sorry an error has occured, please try again later.`);
+    throw new Error(error.message);
   }
 });
 
@@ -155,6 +216,14 @@ await bot.api.setMyCommands([
   {
     command: "/history",
     description: "Show the dialogue history.",
+  },
+  {
+    command: "/model",
+    description: "Outputs a GPT model you are currently using.",
+  },
+  {
+    command: "/changemodel",
+    description: "Change the model you are using.",
   },
   {
     command: "/credits",

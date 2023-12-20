@@ -1,6 +1,6 @@
-import { Context } from "https://deno.land/x/grammy@v1.8.3/mod.ts";
 import { OpenAI } from "./openai.ts";
 import { supabaseClient } from "./supaClient.ts";
+import { BotContext } from "./index.ts";
 
 export type Messages = Message[];
 export type Message = {
@@ -17,7 +17,7 @@ if (!openAI) {
   throw new Error(`Please specify the OpenAI API Key.`);
 }
 
-export const getUserId = (ctx: Context) => {
+export const getUserId = (ctx: BotContext) => {
   return ctx.from?.id || null;
 };
 
@@ -113,9 +113,68 @@ export const getUserMessageHistory = async (id: number): Promise<Messages> => {
   return data![0]["message"] || " ";
 };
 
-export const getAiResponse = async (messages: Messages): Promise<string> => {
-  const { answer } = await openAI.createChatCompletion(messages);
+export const getAiResponse = async (
+  messages: Messages,
+  model: Settings["model"] = "gpt-3.5-turbo"
+): Promise<string> => {
+  const { answer } = await openAI.createChatCompletion(messages, model);
   return answer;
+};
+interface Settings {
+  model: "gpt-3.5-turbo" | "gpt-4" | "gpt-4-1106-preview";
+}
+
+const initSettings: Settings = {
+  model: "gpt-3.5-turbo",
+};
+
+export const checkUserSettings = async (id: number) => {
+  const { data } = await supabaseClient
+    .from("settings")
+    .select("settings")
+    .eq("user_id", id);
+  console.log(!data?.length ? false : true);
+  return !data?.length ? false : true;
+};
+
+export const changeSettings = async (id: number, settings: Settings) => {
+  const { error } = await supabaseClient
+    .from("settings")
+    .update({
+      user_id: id,
+      settings,
+    })
+    .eq("user_id", id);
+  return error ? false : true;
+};
+
+export const getUserSettings = async (id: number) => {
+  const { data } = await supabaseClient
+    .from("settings")
+    .select("settings")
+    .eq("user_id", id);
+
+  if (!data) return null;
+
+  return data[0].settings;
+};
+export const getUserChatModel = async (id: number) => {
+  const userSettings = await getUserSettings(id);
+  if (!userSettings) return "gpt-3.5-turbo";
+  return userSettings.model;
+};
+
+export const createInitialUserSettings = async (id: number) => {
+  const { error, data } = await supabaseClient
+    .from("settings")
+    .insert({
+      user_id: id,
+      settings: initSettings,
+    })
+    .eq("user_id", id);
+
+  console.log({ data, error });
+  if (error) throw error.message;
 };
 
 export const updateUserMessageHistory = async (

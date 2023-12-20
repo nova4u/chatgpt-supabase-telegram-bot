@@ -80,12 +80,12 @@ export class OpenAI {
     return { total_available, total_used };
   }
 
-  public async createChatCompletion(messages: Messages) {
+  public async createChatCompletion(messages: Messages, model: string) {
     const options: CreateCompletionRequest & { messages: Messages } = {
-      model: "gpt-3.5-turbo",
+      model: model,
       messages,
       temperature: 0.6,
-      max_tokens: 400,
+      max_tokens: 800,
     };
 
     const response: Completion = await fetch(
@@ -105,6 +105,7 @@ export class OpenAI {
     }
 
     console.log(response.usage);
+    console.log(`Current model: ${response.model}`);
 
     return {
       answer: response.choices[0].message["content"],

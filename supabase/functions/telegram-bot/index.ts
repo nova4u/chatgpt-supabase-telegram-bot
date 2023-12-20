@@ -231,7 +231,7 @@ await bot.api.setMyCommands([
   },
 ]);
 
-const handleUpdate = webhookCallback(bot, "std/http", "throw", 40_000);
+const handleUpdate = webhookCallback(bot, "std/http", "throw", 120_000);
 
 serve(async (req) => {
   try {
@@ -242,7 +242,6 @@ serve(async (req) => {
     if (!isAllowed) {
       return new Response("not allowed", { status: 405 });
     }
-
     return await handleUpdate(req);
   } catch (err) {
     console.error(err);
